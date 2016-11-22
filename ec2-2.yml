@@ -1,0 +1,33 @@
+---
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Template for EC2 instance with parameters
+Parameters:
+  Subnet:
+    Description: The EC2 instance will be launched in this subnet
+    Type: AWS::EC2::Subnet::Id
+  SecurityGroups:
+    Description: Assign Security Groups for the instance
+    Type: List<AWS::EC2::SecurityGroup::Id>
+  AMIid:
+    Description: Image Id 
+    Type: AWS::EC2::Image::Id
+  Keypair:
+    Description: Key pair name
+    Type: AWS::EC2::KeyPair::KeyName
+  InstanceType:
+    Type: String
+    Default: t2.small
+    AllowedValues:
+      - t2.micro
+      - t2.small
+      - t2.medium
+    Description: Enter t2.micro, t2.small, or t2.medium. Default is t2.micro.
+Resources:
+  MyEC2Instance:
+    Type: "AWS::EC2::Instance"
+    Properties:
+      ImageId: !Ref AMIid
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref Keypair
+      SecurityGroupIds: !Ref SecurityGroups
+      SubnetId: !Ref Subnet

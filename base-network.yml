@@ -1,0 +1,290 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: Network Stack
+Parameters:
+  VpcCidr: 
+    Description: CIDR block for VPC
+    Type: String
+    Default: 10.0.0.0/16
+  PublicSubnet0Cidr: 
+    Description: CIDR block for PublicSubnet0
+    Type: String
+    Default: 10.0.1.0/24
+  PublicSubnet1Cidr: 
+    Description: CIDR block for PublicSubnet1
+    Type: String
+    Default: 10.0.2.0/24
+  PrivateSubnet0Cidr: 
+    Description: CIDR block for PrivateSubnet0
+    Type: String
+    Default: 10.0.3.0/24
+  PrivateSubnet1Cidr: 
+    Description: CIDR block for PrivateSubnet1
+    Type: String
+    Default: 10.0.4.0/24
+Resources:
+  Vpc:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: 
+        Ref: VpcCidr
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+      - Key: Name
+        Value:
+          Ref: AWS::StackName
+
+  PublicSubnet0:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - 0
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock: 
+        Ref: PublicSubnet0Cidr
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - '-'
+          - - Ref: AWS::StackName
+            - PublicSubnet0
+      VpcId:
+        Ref: Vpc
+
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - 1
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PublicSubnet1Cidr
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - '-'
+          - - Ref: AWS::StackName
+            - PublicSubnet1
+      VpcId:
+        Ref: Vpc
+
+  PrivateSubnet0:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - 0
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock: 
+        Ref: PrivateSubnet0Cidr
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - '-'
+          - - Ref: AWS::StackName
+            - PrivateSubnet0
+      VpcId:
+        Ref: Vpc
+
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      AvailabilityZone:
+        Fn::Select:
+        - 1
+        - Fn::GetAZs:
+            Ref: AWS::Region
+      CidrBlock:
+        Ref: PrivateSubnet1Cidr
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - '-'
+          - - Ref: AWS::StackName
+            - PrivateSubnet1
+      VpcId:
+        Ref: Vpc
+
+  PublicRT:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - '-'
+          - - Ref: AWS::StackName
+            - PublicRT
+      VpcId:
+        Ref: Vpc
+
+  PrivateRT0:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - '-'
+          - - Ref: AWS::StackName
+            - PrivateRT0
+      VpcId:
+        Ref: Vpc
+
+  PrivateRT1:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - '-'
+          - - Ref: AWS::StackName
+            - PrivateRT1
+      VpcId:
+        Ref: Vpc
+
+  PublicSubnet0Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRT
+      SubnetId:
+        Ref: PublicSubnet0
+
+  PublicSubnet1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PublicRT
+      SubnetId:
+        Ref: PublicSubnet1
+
+  PrivateSubnet0Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PrivateRT0
+      SubnetId:
+        Ref: PrivateSubnet0
+
+  PrivateSubnet1Association:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      RouteTableId:
+        Ref: PrivateRT1
+      SubnetId:
+        Ref: PrivateSubnet1
+
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+      - Key: Name
+        Value:
+          Fn::Join:
+          - '-'
+          - - Ref: AWS::StackName
+            - InternetGateway
+
+  AttachIgw:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      InternetGatewayId:
+        Ref: InternetGateway
+      VpcId:
+        Ref: Vpc
+
+  PublicRTIgwRoute:
+    Type: AWS::EC2::Route
+    DependsOn: AttachIgw
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId:
+        Ref: InternetGateway
+      RouteTableId:
+        Ref: PublicRT
+
+  NatGateway0EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGateway1EIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+
+  NatGateway0:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - NatGateway0EIP
+        - AllocationId
+      SubnetId:
+        Ref: PublicSubnet0
+
+  NatGateway1:
+    Type: AWS::EC2::NatGateway
+    Properties:
+      AllocationId:
+        Fn::GetAtt:
+        - NatGateway1EIP
+        - AllocationId
+      SubnetId:
+        Ref: PublicSubnet1
+
+  NatGateway0PrivateRT0:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NatGateway0
+      RouteTableId:
+        Ref: PrivateRT0
+
+  NatGateway1PrivateRT1:
+    Type: AWS::EC2::Route
+    Properties:
+      DestinationCidrBlock: 0.0.0.0/0
+      NatGatewayId:
+        Ref: NatGateway1
+      RouteTableId:
+        Ref: PrivateRT1
+
+Outputs:
+  VpcId:
+    Value:
+      Ref: Vpc
+    Export:  
+      Name: !Join [ "-", [ !Ref "AWS::StackName", VpcId ] ]
+  PrivateSubnet0:
+    Value:
+      Ref: PrivateSubnet0
+    Export:  
+      Name: !Join [ "-", [ !Ref "AWS::StackName", PrivateSubnet0 ] ]
+  PrivateSubnet1:
+    Value:
+      Ref: PrivateSubnet1
+    Export:  
+      Name: !Join [ "-", [ !Ref "AWS::StackName", PrivateSubnet1 ] ]
+  PublicSubnet0:
+    Value:
+      Ref: PublicSubnet0
+    Export:  
+      Name: !Join [ "-", [ !Ref "AWS::StackName", PublicSubnet0 ] ]
+  PublicSubnet1:
+    Value:
+      Ref: PublicSubnet1
+    Export:  
+      Name: !Join [ "-", [ !Ref "AWS::StackName", PublicSubnet1 ] ]
