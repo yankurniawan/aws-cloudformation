@@ -1,4 +1,4 @@
-AWSTemplateFormatVersion: '2010-09-09'
+AWSTemplateFormatVersion: 2010-09-09
 Description: IAM Stack
 
 Resources:
@@ -6,7 +6,7 @@ Resources:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
-        Version: '2012-10-17'
+        Version: 2012-10-17
         Statement:
         - Effect: Allow
           Principal:
@@ -14,24 +14,24 @@ Resources:
             - ec2.amazonaws.com
           Action:
           - sts:AssumeRole
-      Path: "/"
+      Path: /
   RolePolicies:
     Type: AWS::IAM::Policy
     Properties:
       PolicyName: S3Access
       PolicyDocument:
-        Version: '2012-10-17'
+        Version: 2012-10-17
         Statement:
         - Effect: Allow
           Action:
           - s3:*
-          Resource: "*"
+          Resource: '*'
       Roles:
       - Ref: AppRole
   AppInstanceProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
-      Path: "/"
+      Path: /
       Roles:
       - Ref: AppRole
 Outputs:
@@ -39,4 +39,4 @@ Outputs:
     Description: Application EC2 Instance Profile 
     Value: !Ref AppInstanceProfile
     Export:  
-      Name: !Join [ "-", [ !Ref "AWS::StackName", AppInstanceProfile ] ]
+      Name: !Sub ${AWS::StackName}-AppInstanceProfile

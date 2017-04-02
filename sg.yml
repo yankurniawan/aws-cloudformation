@@ -1,0 +1,116 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Stack for Security Groups
+Parameters:
+  NetworkStack:
+    Description: Network stack name
+    Type: String
+  AllowedIP:
+    Description: IP address or CIDR block allowed to SHH into OpenVPN server
+    Type: String
+    AllowedPattern: ((\d{1,3})\.){3}\d{1,3}/\d{1,2}
+    ConstraintDescription: IP address (eg 123.123.123.123/32) or CIDR Block (eg 10.0.0.0/16)
+    Default: 0.0.0.0/0
+
+Resources:
+  AppSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for application tier
+      SecurityGroupIngress:
+      - FromPort: '80'
+        ToPort: '80'
+        IpProtocol: 'tcp'
+        SourceSecurityGroupId: !Ref AppELBSecurityGroup
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: ${NetworkStack}-VpcId
+
+  AppELBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for application ELB
+      SecurityGroupIngress:
+      - FromPort: '80'
+        ToPort: '80'
+        IpProtocol: 'tcp'
+        CidrIp: 0.0.0.0/0
+      - FromPort: '443'
+        ToPort: '443'
+        IpProtocol: 'tcp'
+        CidrIp: 0.0.0.0/0
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: ${NetworkStack}-VpcId
+
+  DBSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for MySQL database server
+      SecurityGroupIngress:
+      SecurityGroupIngress:
+      - FromPort: '3306'
+        ToPort: '3306'
+        IpProtocol: 'tcp'
+        SourceSecurityGroupId: !Ref AppSecurityGroup
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: ${NetworkStack}-VpcId
+
+  OpenVPNSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security Group for OpenVPN server
+      SecurityGroupIngress:
+      - CidrIp: !Ref AllowedIP
+        FromPort: 22
+        ToPort: 22
+        IpProtocol: tcp
+      - CidrIp: '0.0.0.0/0'
+        FromPort: 943
+        ToPort: 943
+        IpProtocol: tcp
+      - CidrIp: '0.0.0.0/0'
+        FromPort: 443
+        ToPort: 443
+        IpProtocol: tcp
+      - CidrIp: '0.0.0.0/0'
+        FromPort: 1194
+        ToPort: 1194
+        IpProtocol: tcp
+      VpcId:
+        Fn::ImportValue:
+          Fn::Sub: ${NetworkStack}-VpcId
+
+Outputs:
+  AppSecurityGroup:
+    Description: The security group ID for App tier
+    Export:
+      Name: !Sub ${AWS::StackName}-AppSecurityGroup
+    Value:
+      Fn::GetAtt:
+      - AppSecurityGroup
+      - GroupId
+  AppELBSecurityGroup:
+    Description: The security group ID for App ELB
+    Export:
+      Name: !Sub ${AWS::StackName}-AppELBSecurityGroup
+    Value:
+      Fn::GetAtt:
+      - AppELBSecurityGroup
+      - GroupId
+  DBSecurityGroup:
+    Description: The security group ID for MySQL DB
+    Export:
+      Name: !Sub ${AWS::StackName}-DBSecurityGroup
+    Value:
+      Fn::GetAtt:
+      - DBSecurityGroup
+      - GroupId
+  OpenVPNSecurityGroup:
+    Description: The security group ID for OpenVPN server
+    Export:
+      Name: !Sub ${AWS::StackName}-OpenVPNSecurityGroup
+    Value:
+      Fn::GetAtt:
+      - OpenVPNSecurityGroup
+      - GroupId

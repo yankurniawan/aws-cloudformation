@@ -1,10 +1,9 @@
----
-AWSTemplateFormatVersion: "2010-09-09"
+AWSTemplateFormatVersion: 2010-09-09
 Description: Template for EC2 instance
 Resources:
   MyEC2Instance:
-    Type: "AWS::EC2::Instance"
+    Type: AWS::EC2::Instance
     Properties:
-      ImageId: "ami-7172b611" #A comment -- This is an Amazon Linux AMI
+      ImageId: ami-7172b611 #A comment -- This is an Amazon Linux AMI
       InstanceType: t2.micro
       KeyName: testkey #your key pair name
