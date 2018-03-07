@@ -17,9 +17,9 @@ Resources:
     Properties:
       GroupDescription: Security Group for application tier
       SecurityGroupIngress:
-      - FromPort: '80'
-        ToPort: '80'
-        IpProtocol: 'tcp'
+      - FromPort: 80
+        ToPort: 80
+        IpProtocol: tcp
         SourceSecurityGroupId: !Ref AppELBSecurityGroup
       VpcId:
         Fn::ImportValue:
@@ -30,13 +30,13 @@ Resources:
     Properties:
       GroupDescription: Security Group for application ELB
       SecurityGroupIngress:
-      - FromPort: '80'
-        ToPort: '80'
-        IpProtocol: 'tcp'
+      - FromPort: 80
+        ToPort: 80
+        IpProtocol: tcp
         CidrIp: 0.0.0.0/0
-      - FromPort: '443'
-        ToPort: '443'
-        IpProtocol: 'tcp'
+      - FromPort: 443
+        ToPort: 443
+        IpProtocol: tcp
         CidrIp: 0.0.0.0/0
       VpcId:
         Fn::ImportValue:
@@ -48,9 +48,9 @@ Resources:
       GroupDescription: Security Group for MySQL database server
       SecurityGroupIngress:
       SecurityGroupIngress:
-      - FromPort: '3306'
-        ToPort: '3306'
-        IpProtocol: 'tcp'
+      - FromPort: 3306
+        ToPort: 3306
+        IpProtocol: tcp
         SourceSecurityGroupId: !Ref AppSecurityGroup
       VpcId:
         Fn::ImportValue:
@@ -65,15 +65,15 @@ Resources:
         FromPort: 22
         ToPort: 22
         IpProtocol: tcp
-      - CidrIp: '0.0.0.0/0'
+      - CidrIp: 0.0.0.0/0
         FromPort: 943
         ToPort: 943
         IpProtocol: tcp
-      - CidrIp: '0.0.0.0/0'
+      - CidrIp: 0.0.0.0/0
         FromPort: 443
         ToPort: 443
         IpProtocol: tcp
-      - CidrIp: '0.0.0.0/0'
+      - CidrIp: 0.0.0.0/0
         FromPort: 1194
         ToPort: 1194
         IpProtocol: tcp

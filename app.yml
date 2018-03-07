@@ -1,0 +1,325 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: Application Stack
+
+Parameters:
+  IAMStackName:
+    Type: String
+    Description: IAM CF Stack name
+    Default: test-iam
+  NetworkStackName:
+    Type: String
+    Description: Network CF Stack name
+    Default: test-network
+  WordPressVersion:
+    Type: String
+    Description: WordPress version to be installed
+    Default: 4.9.4
+  WebServerCapacity:
+    Default: 1
+    Description: The initial number of WebServer instances
+    Type: Number
+    MinValue: 1
+    MaxValue: 5
+    ConstraintDescription: Must be between 1 and 5 EC2 instances
+  WebServerInstanceType:
+    Default: t2.small
+    Description: WebServer EC2 instance type
+    Type: String
+    AllowedValues:
+      - t2.small
+      - m3.medium
+      - m4.large
+    ConstraintDescription: Must be a valid EC2 instance type
+  KeyPair:
+    ConstraintDescription: Must be the name of an existing EC2 KeyPair.
+    Default: yan-key-pair-apsydney
+    Description: Name of an existing EC2 KeyPair to enable SSH access to the instances
+    Type: AWS::EC2::KeyPair::KeyName
+  DBInstanceClass:
+    Default: db.t2.small
+    Description: Database instance class
+    Type: String
+    AllowedValues:
+      - db.t2.small
+      - db.m3.medium
+      - db.m4.large
+    ConstraintDescription: Must be a valid database instance type
+  DBName:
+    Default: wordpressdb
+    Description: The WordPress database name
+    Type: String
+    MinLength: 1
+    MaxLength: 64
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters
+  DBUser:
+    NoEcho: true
+    Description: The WordPress database admin account username
+    Type: String
+    MinLength: 1
+    MaxLength: 16
+    AllowedPattern: "[a-zA-Z][a-zA-Z0-9]*"
+    ConstraintDescription: Must begin with a letter and contain only alphanumeric characters
+  DBPassword: 
+    NoEcho: true
+    Description: The WordPress database admin account password
+    Type: String
+    MinLength: 8
+    MaxLength: 41
+    AllowedPattern: "[a-zA-Z0-9]*"
+    ConstraintDescription: Must contain only alphanumeric characters
+  DBAllocatedStorage: 
+    Default: 5
+    Description: The size of the database (GB)
+    Type: Number
+    MinValue: 5
+    MaxValue: 1024
+    ConstraintDescription: Must be between 5 and 1024 GB
+
+Mappings:
+  Region2AMI:
+    us-east-1:
+      AmiId: ami-97785bed
+    us-east-2:
+      AmiId: ami-f63b1193
+    us-west-2:
+      AmiId: ami-f2d3638a
+    us-west-1:
+      AmiId: ami-824c4ee2
+    eu-west-1:
+      AmiId: ami-d834aba1
+    eu-west-2:
+      AmiId: ami-403e2524
+    eu-west-3:
+      AmiId: ami-8ee056f3
+    eu-central-1:
+      AmiId: ami-5652ce39
+    ap-northeast-1:
+      AmiId: ami-ceafcba8
+    ap-northeast-2:
+      AmiId: ami-863090e8
+    ap-northeast-3:
+      AmiId: ami-83444afe
+    ap-southeast-1:
+      AmiId: ami-68097514
+    ap-southeast-2:
+      AmiId: ami-942dd1f6
+    ap-south-1:
+      AmiId: ami-531a4c3c
+    ca-central-1:
+      AmiId: ami-a954d1cd
+    sa-east-1:
+      AmiId: ami-84175ae8
+    cn-north-1:
+      AmiId: ami-cb19c4a6
+    cn-northwest-1:
+      AmiId: ami-3e60745c
+  Region2OpenVPNAMI:
+    us-east-1:
+      AmiId: ami-f6eed4e0
+    us-east-2:
+      AmiId: ami-6d163708
+    us-west-2:
+      AmiId: ami-e346559a
+    us-west-1:
+      AmiId: ami-091f3069
+    eu-west-1:
+      AmiId: ami-238b6a5a
+    eu-west-2:
+      AmiId: ami-17c5d373
+    eu-west-3:
+      AmiId: ami-64a11619
+    eu-central-1:
+      AmiId: ami-17862678
+    ap-northeast-1:
+      AmiId: ami-dee1fdb9
+    ap-northeast-2:
+      AmiId: ami-c98c52a7
+    ap-southeast-1:
+      AmiId: ami-81d75de2
+    ap-southeast-2:
+      AmiId: ami-3cd6c45f
+    ap-south-1:
+      AmiId: ami-cdd4aaa2
+    ca-central-1:
+      AmiId: ami-c6813ea2
+    sa-east-1:
+      AmiId: ami-930673ff
+
+Resources:
+  WebServerGroup:
+    Type: AWS::AutoScaling::AutoScalingGroup
+    Properties:
+      VPCZoneIdentifier:
+      - Fn::ImportValue:
+          !Sub ${NetworkStackName}-PrivateSubnet0
+      - Fn::ImportValue:
+          !Sub ${NetworkStackName}-PrivateSubnet1
+      LaunchConfigurationName: !Ref WebServerLC
+      MinSize: 1
+      MaxSize: 5
+      DesiredCapacity: !Ref WebServerCapacity
+      LoadBalancerNames: 
+        - !Ref AppELB
+      Tags:
+        -
+          Key: Name
+          Value: !Sub ${AWS::StackName}-WebServer
+          PropagateAtLaunch: true
+    UpdatePolicy:
+      AutoScalingRollingUpdate:
+        MinInstancesInService: 1
+        MaxBatchSize: 1
+        PauseTime: PT15M
+        WaitOnResourceSignals: true
+    CreationPolicy:
+      ResourceSignal:
+        Timeout: PT15M
+  WebServerLC:
+    Type: AWS::AutoScaling::LaunchConfiguration
+    Properties:
+      AssociatePublicIpAddress: false
+      ImageId: !FindInMap [ Region2AMI, !Ref "AWS::Region", AmiId ]
+      IamInstanceProfile:
+        Fn::ImportValue:
+          !Sub ${IAMStackName}-AppInstanceProfile
+      InstanceType: !Ref WebServerInstanceType
+      KeyName: !Ref KeyPair
+      SecurityGroups:
+        - Fn::ImportValue:
+            !Sub ${NetworkStackName}-AppSecurityGroup
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            exec > >(tee /var/log/userdata.log)
+            exec 2>&1
+            yum install -y httpd php php-mysql
+            wget -O /var/www/html/wordpress-${WordPressVersion}.tar.gz https://wordpress.org/wordpress-${WordPressVersion}.tar.gz
+            tar -xzvf /var/www/html/wordpress-${WordPressVersion}.tar.gz -C /var/www/html/
+            rm -f /var/www/html/wordpress-${WordPressVersion}.tar.gz
+            cp /var/www/html/wordpress/wp-config-sample.php /var/www/html/wordpress/wp-config.php
+            sed -i "s/database_name_here/${DBName}/g" /var/www/html/wordpress/wp-config.php
+            sed -i "s/username_here/${DBUser}/g" /var/www/html/wordpress/wp-config.php
+            sed -i "s/password_here/${DBPassword}/g" /var/www/html/wordpress/wp-config.php
+            sed -i "s/localhost/${DBAddress}/g" /var/www/html/wordpress/wp-config.php
+            service httpd start
+            chkconfig httpd on
+            /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} --resource WebServerGroup --region ${AWS::Region}
+          - {
+              DBAddress: !GetAtt DBInstance.Endpoint.Address
+            }
+  WebServerScaleUpPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref WebServerGroup
+      Cooldown: 60
+      ScalingAdjustment: 1
+  WebServerScaleDownPolicy:
+    Type: AWS::AutoScaling::ScalingPolicy
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref WebServerGroup
+      Cooldown: 60
+      ScalingAdjustment: -1
+  CPUAlarmHigh:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-up if CPU > 90% for 10 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 90
+      AlarmActions:
+        - !Ref WebServerScaleUpPolicy
+      Dimensions: 
+        - Name: AutoScalingGroupName
+          Value: !Ref WebServerGroup
+      ComparisonOperator: GreaterThanThreshold
+  CPUAlarmLow:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Scale-down if CPU < 70% for 10 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: 300
+      EvaluationPeriods: 2
+      Threshold: 70
+      AlarmActions: 
+        - !Ref WebServerScaleDownPolicy
+      Dimensions: 
+        - Name: AutoScalingGroupName
+          Value: !Ref WebServerGroup
+      ComparisonOperator: LessThanThreshold
+
+  AppELB:
+    Type: AWS::ElasticLoadBalancing::LoadBalancer
+    Properties:
+      Scheme: internet-facing
+      SecurityGroups:
+      - Fn::ImportValue:
+          !Sub ${NetworkStackName}-AppELBSecurityGroup
+      Subnets:
+      - Fn::ImportValue:
+          !Sub ${NetworkStackName}-PublicSubnet0
+      - Fn::ImportValue:
+          !Sub ${NetworkStackName}-PublicSubnet1
+      CrossZone: true
+      Listeners:
+        -
+          LoadBalancerPort: 80
+          InstancePort: 80
+          Protocol: HTTP
+      HealthCheck:
+        Target: HTTP:80/wordpress/wp-admin/install.php
+        HealthyThreshold: 3
+        UnhealthyThreshold: 5
+        Interval: 30
+        Timeout: 5
+  DBSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for RDS
+      SubnetIds:
+      - Fn::ImportValue:
+          !Sub ${NetworkStackName}-PrivateSubnet0
+      - Fn::ImportValue:
+          !Sub ${NetworkStackName}-PrivateSubnet1
+  DBInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBName: !Ref DBName
+      Engine: MySQL
+      MultiAZ: true
+      MasterUsername: !Ref DBUser
+      MasterUserPassword: !Ref DBPassword
+      DBInstanceClass: !Ref DBInstanceClass
+      DBSubnetGroupName: !Ref DBSubnetGroup
+      AllocatedStorage: !Ref DBAllocatedStorage
+      VPCSecurityGroups:
+      - Fn::ImportValue:
+          !Sub ${NetworkStackName}-DBSecurityGroup
+  OpenVPNInstance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !FindInMap [ Region2OpenVPNAMI, !Ref "AWS::Region", AmiId ]
+      InstanceType: t2.micro
+      SourceDestCheck: false
+      KeyName: !Ref KeyPair
+      SubnetId: 
+        Fn::ImportValue:
+          !Sub ${NetworkStackName}-PublicSubnet0
+      SecurityGroupIds: 
+        - Fn::ImportValue:
+            !Sub ${NetworkStackName}-OpenVPNSecurityGroup
+      Tags:
+        -
+          Key: Name
+          Value: !Sub ${AWS::StackName}-OpenVPNServer
+Outputs:
+  ELBAddress:
+    Value: !GetAtt AppELB.DNSName

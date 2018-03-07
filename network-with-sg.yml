@@ -32,7 +32,7 @@ Parameters:
     ConstraintDescription: CIDR Block (eg 10.0.0.0/16)
     Default: 10.0.4.0/24
   AllowedIP:
-    Description: IP address or CIDR block allowed to SHH into OpenVPN server
+    Description: IP address or CIDR block allowed to SSH into OpenVPN server
     Type: String
     AllowedPattern: ((\d{1,3})\.){3}\d{1,3}/\d{1,2}
     ConstraintDescription: IP address (eg 123.123.123.123/32) or CIDR Block (eg 10.0.0.0/16)
@@ -54,6 +54,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select [0, !GetAZs '']
+      MapPublicIpOnLaunch: true
       CidrBlock: 
         Ref: PublicSubnet0Cidr
       Tags:
@@ -66,6 +67,7 @@ Resources:
     Type: AWS::EC2::Subnet
     Properties:
       AvailabilityZone: !Select [1, !GetAZs '']
+      MapPublicIpOnLaunch: true
       CidrBlock:
         Ref: PublicSubnet1Cidr
       Tags:
@@ -235,9 +237,9 @@ Resources:
     Properties:
       GroupDescription: Security Group for application tier
       SecurityGroupIngress:
-      - FromPort: '80'
-        ToPort: '80'
-        IpProtocol: 'tcp'
+      - FromPort: 80
+        ToPort: 80
+        IpProtocol: tcp
         SourceSecurityGroupId: !Ref AppELBSecurityGroup
       VpcId:
         Ref: Vpc
@@ -247,13 +249,13 @@ Resources:
     Properties:
       GroupDescription: Security Group for application ELB
       SecurityGroupIngress:
-      - FromPort: '80'
-        ToPort: '80'
-        IpProtocol: 'tcp'
+      - FromPort: 80
+        ToPort: 80
+        IpProtocol: tcp
         CidrIp: 0.0.0.0/0
-      - FromPort: '443'
-        ToPort: '443'
-        IpProtocol: 'tcp'
+      - FromPort: 443
+        ToPort: 443
+        IpProtocol: tcp
         CidrIp: 0.0.0.0/0
       VpcId:
         Ref: Vpc
@@ -264,9 +266,9 @@ Resources:
       GroupDescription: Security Group for MySQL database server
       SecurityGroupIngress:
       SecurityGroupIngress:
-      - FromPort: '3306'
-        ToPort: '3306'
-        IpProtocol: 'tcp'
+      - FromPort: 3306
+        ToPort: 3306
+        IpProtocol: tcp
         SourceSecurityGroupId: !Ref AppSecurityGroup
       VpcId:
         Ref: Vpc
@@ -280,15 +282,15 @@ Resources:
         FromPort: 22
         ToPort: 22
         IpProtocol: tcp
-      - CidrIp: '0.0.0.0/0'
+      - CidrIp: 0.0.0.0/0
         FromPort: 943
         ToPort: 943
         IpProtocol: tcp
-      - CidrIp: '0.0.0.0/0'
+      - CidrIp: 0.0.0.0/0
         FromPort: 443
         ToPort: 443
         IpProtocol: tcp
-      - CidrIp: '0.0.0.0/0'
+      - CidrIp: 0.0.0.0/0
         FromPort: 1194
         ToPort: 1194
         IpProtocol: tcp
